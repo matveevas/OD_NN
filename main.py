@@ -1,6 +1,9 @@
 from __future__ import division
 from __future__ import print_function
+
+from elephas.spark_model import SparkModel
 from pyspark.sql import SparkSession
+
 
 from pyspark.sql.functions import UserDefinedFunction
 from pyspark.sql.functions import *
@@ -15,7 +18,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 from pyspark.ml.feature import VectorAssembler
 from pyspark.ml.linalg import Vectors
-
+from elephas.utils.rdd_utils import to_simple_rdd
 
 # convert an array of values into a dataset matrix
 def create_dataset(dataset, look_back=1):
@@ -31,6 +34,8 @@ spark = SparkSession\
     .appName("Python Spark SQL basic example")\
     .config("spark.some.config.option", "some-value")\
     .getOrCreate()
+
+
 numpy.random.seed(7)
 # load data
 df3 = spark.read.csv("/Users/svetlana.matveeva/Documents/MasterThesis/Dataset/joinresult/part-00000-3a94d824-4491-4a1a-b650-e61bd752ed5a-c000.csv")
@@ -120,15 +125,22 @@ testX, testY = create_dataset(test, look_back)
 # reshape input to be [samples, time steps, features]
 trainX = numpy.reshape(trainX, (trainX.shape[0], 1, trainX.shape[1]))
 testX = numpy.reshape(testX, (testX.shape[0], 1, testX.shape[1]))
+rdd = to_simple_rdd(sc, trainX, trainY)
+
 # create and fit the LSTM network
 model = Sequential()
 model.add(LSTM(4, input_shape=(1, look_back)))
 model.add(Dense(1))
 model.compile(loss='mean_squared_error', optimizer='adam')
 model.fit(trainX, trainY, epochs=300, batch_size=1, verbose=2)
+
+spark_model = SparkModel(sc,model, optimizer=adam, frequency='epoch', num_workers=2)
+spark_model.train(rdd, nb_epoch=50, batch_size=4, verbose=2, validation_split=0.1)
+
+
 # make predictions
-trainPredict = model.predict(trainX)
-testPredict = model.predict(testX)
+trainPredict = spark_model.predict(trainX)
+testPredict = spark_model.predict(testX)
 # invert predictions
 trainPredict = scaler.inverse_transform(trainPredict)
 trainY = scaler.inverse_transform([trainY])
