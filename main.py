@@ -19,6 +19,7 @@ from sklearn.metrics import mean_squared_error
 from pyspark.ml.feature import VectorAssembler
 from pyspark.ml.linalg import Vectors
 from elephas.utils.rdd_utils import to_simple_rdd
+from elephas import optimizers as elephas_optimizers
 
 # convert an array of values into a dataset matrix
 def create_dataset(dataset, look_back=1):
@@ -125,7 +126,7 @@ testX, testY = create_dataset(test, look_back)
 # reshape input to be [samples, time steps, features]
 trainX = numpy.reshape(trainX, (trainX.shape[0], 1, trainX.shape[1]))
 testX = numpy.reshape(testX, (testX.shape[0], 1, testX.shape[1]))
-rdd = to_simple_rdd(sc, trainX, trainY)
+rdd = to_simple_rdd(spark.sparkContext, trainX, trainY)
 
 # create and fit the LSTM network
 model = Sequential()
@@ -134,7 +135,9 @@ model.add(Dense(1))
 model.compile(loss='mean_squared_error', optimizer='adam')
 model.fit(trainX, trainY, epochs=300, batch_size=1, verbose=2)
 
-spark_model = SparkModel(sc,model, optimizer=adam, frequency='epoch', num_workers=2)
+adam = elephas_optimizers.Adam()
+
+spark_model = SparkModel(spark.sparkContext, model, optimizer=adam, frequency='epoch', num_workers=2)
 spark_model.train(rdd, nb_epoch=50, batch_size=4, verbose=2, validation_split=0.1)
 
 
