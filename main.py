@@ -132,18 +132,18 @@ rdd = to_simple_rdd(spark.sparkContext, trainX, trainY)
 model = Sequential()
 model.add(LSTM(4, input_shape=(1, look_back)))
 model.add(Dense(1))
-model.compile(loss='mean_squared_error', optimizer='adam')
+model.compile(loss='mean_squared_error', optimazer='adam')
 model.fit(trainX, trainY, epochs=300, batch_size=1, verbose=2)
 
-adam = elephas_optimizers.Adam()
-
-spark_model = SparkModel(spark.sparkContext, model, optimizer=adam, frequency='epoch', num_workers=2)
-spark_model.train(rdd, nb_epoch=50, batch_size=4, verbose=2, validation_split=0.1)
+# adam = elephas_optimizers.Adam()
+#
+# spark_model = SparkModel(spark.sparkContext, model, optimizer=adam, frequency='epoch', num_workers=2)
+# spark_model.train(rdd, nb_epoch=50, batch_size=4, verbose=2, validation_split=0.1)
 
 
 # make predictions
-trainPredict = spark_model.predict(trainX)
-testPredict = spark_model.predict(testX)
+trainPredict = model.predict(trainX)
+testPredict = model.predict(testX)
 # invert predictions
 trainPredict = scaler.inverse_transform(trainPredict)
 trainY = scaler.inverse_transform([trainY])
@@ -167,3 +167,34 @@ plt.plot(scaler.inverse_transform(inputdata))
 plt.plot(trainPredictPlot)
 plt.plot(testPredictPlot)
 plt.show()
+
+
+#
+# from pyspark import SparkContext, SparkConf
+# conf = SparkConf().setAppName('Elephas_App').setMaster('local[8]')
+# sc = SparkContext(conf=conf)
+#
+# from keras.models import Sequential
+# from keras.layers.core import Dense, Dropout, Activation
+# from keras.optimizers import SGD
+# model = Sequential()
+# model.add(Dense(128, input_dim=784))
+# model.add(Activation('relu'))
+# model.add(Dropout(0.2))
+# model.add(Dense(128))
+# model.add(Activation('relu'))
+# model.add(Dropout(0.2))
+# model.add(Dense(10))
+# model.add(Activation('softmax'))
+# model.compile(loss='categorical_crossentropy', optimizer=SGD())
+#
+# from elephas.utils.rdd_utils import to_simple_rdd
+# rdd = to_simple_rdd(sc, trainX, trainY)
+#
+# from elephas.spark_model import SparkModel
+# from elephas import optimizers as elephas_optimizers
+#
+# adagrad = elephas_optimizers.Adagrad()
+# spark_model = SparkModel(sc, model, optimizer=adagrad, frequency='epoch', mode='asynchronous', num_workers=2)
+# spark_model.train(rdd, nb_epoch=20, batch_size=32, verbose=0, validation_split=0.1)
+
